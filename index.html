@@ -35,7 +35,7 @@
             margin-bottom: 20px;
         }
 
-        .category-table {
+        .category-table, .grade-table {
             margin-top: 40px;
         }
 
@@ -105,8 +105,21 @@
         </tbody>
     </table>
 
+    <h2>Grade-wise Split</h2>
+    <table id="gradeTable" class="grade-table">
+        <thead>
+            <tr>
+                <th>Grade</th>
+                <th>Number of Students</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Grade-wise split will be dynamically inserted here -->
+        </tbody>
+    </table>
+
     <!-- QPI Display -->
-    <h2>QPI: <span id="qpi"></span></h2>
+    <h2>QPI (Average Percentage): <span id="qpi"></span>%</h2>
 
     <!-- Download Buttons -->
     <div class="download-btn">
@@ -175,11 +188,9 @@
                 return;
             }
 
-            // Calculate total marks, average, highest marks and QPI
+            // Calculate total marks, average percentage, and QPI
             const totalObtainedMarks = students.reduce((sum, student) => sum + student.marks, 0);
-            const averageMarks = totalObtainedMarks / students.length;
-            const highestMarks = Math.max(...students.map(student => student.marks));
-            const qpi = (totalObtainedMarks / students.length).toFixed(2);
+            const averagePercentage = ((totalObtainedMarks / (students.length * totalMarks)) * 100).toFixed(2);
 
             // Calculate percentages and percentiles
             students.forEach(student => {
@@ -217,6 +228,23 @@
                 else categories[8].count++;
             });
 
+            // Grade-wise split
+            const gradeCounts = {
+                A1: 0,
+                A2: 0,
+                B1: 0,
+                B2: 0,
+                C1: 0,
+                C2: 0,
+                D1: 0,
+                D2: 0,
+                E: 0
+            };
+
+            students.forEach(student => {
+                gradeCounts[student.grade]++;
+            });
+
             // Populate results table
             const resultsTableBody = document.querySelector('#resultsTable tbody');
             resultsTableBody.innerHTML = '';
@@ -243,8 +271,19 @@
                 categoryTableBody.innerHTML += row;
             });
 
+            // Populate grade-wise table
+            const gradeTableBody = document.querySelector('#gradeTable tbody');
+            gradeTableBody.innerHTML = '';
+            Object.entries(gradeCounts).forEach(([grade, count]) => {
+                const row = `<tr>
+                    <td>${grade}</td>
+                    <td>${count}</td>
+                </tr>`;
+                gradeTableBody.innerHTML += row;
+            });
+
             // Display QPI
-            document.getElementById('qpi').textContent = qpi;
+            document.getElementById('qpi').textContent = averagePercentage;
         }
 
         function downloadPDF() {
@@ -266,9 +305,17 @@
                 startY: 20,
             });
 
+            // Add grade-wise split table to PDF
+            doc.addPage();
+            doc.text("Grade-wise Split", 10, 10);
+            doc.autoTable({
+                html: '#gradeTable',
+                startY: 20,
+            });
+
             // Add QPI info
             doc.addPage();
-            doc.text(`QPI: ${document.getElementById('qpi').textContent}`, 10, 10);
+            doc.text(`QPI (Average Percentage): ${document.getElementById('qpi').textContent}%`, 10, 10);
 
             // Save PDF
             doc.save('student_marks_analysis.pdf');
