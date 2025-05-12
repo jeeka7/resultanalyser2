@@ -10,32 +10,43 @@
             text-align: center;
             margin-top: 30px;
         }
+
         table {
             margin: 20px auto;
             border-collapse: collapse;
             width: 80%;
         }
+
         th, td {
             border: 1px solid black;
             padding: 10px;
             text-align: center;
         }
+
         th {
             background-color: #f2f2f2;
         }
+
         .highlight {
             background-color: yellow;
         }
+
         .input-section {
             margin-bottom: 20px;
         }
+
         .category-table {
             margin-top: 40px;
         }
+
         .download-btn {
             margin-top: 20px;
         }
     </style>
+    <!-- Include jsPDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Include jsPDF AutoTable Plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.26/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <h1>Student Marks Analyzer</h1>
@@ -45,12 +56,15 @@
         <label for="subject">Subject:</label>
         <input type="text" id="subject" placeholder="Enter Subject">
         <br><br>
+
         <label for="numStudents">Number of Students (Max 70):</label>
         <input type="number" id="numStudents" min="1" max="70" placeholder="Enter number of students">
         <br><br>
-        <label for="passingMarks">Passing Marks:</label>
-        <input type="number" id="passingMarks" placeholder="Enter Passing Marks">
+
+        <label for="totalMarks">Total Marks:</label>
+        <input type="number" id="totalMarks" placeholder="Enter Total Marks">
         <br><br>
+
         <button onclick="generateInputFields()">Generate Input Fields</button>
     </div>
 
@@ -66,7 +80,8 @@
         <thead>
             <tr>
                 <th>Roll Number</th>
-                <th>Marks</th>
+                <th>Marks Obtained</th>
+                <th>Grade</th>
                 <th>Percentage</th>
                 <th>Percentile</th>
                 <th>Status</th>
@@ -112,10 +127,21 @@
             for (let i = 1; i <= numStudents; i++) {
                 dynamicInputs.innerHTML += `
                     <div>
-                        <label for="roll${i}">Roll Number ${i}:</label>
-                        <input type="text" id="roll${i}" placeholder="Enter Roll Number">
-                        <label for="marks${i}">Marks ${i}:</label>
+                        <label for="marks${i}">Roll Number ${i}:</label>
+                        <label>Marks:</label>
                         <input type="number" id="marks${i}" placeholder="Enter Marks">
+                        <label>Grade:</label>
+                        <select id="grade${i}">
+                            <option value="A1">A1</option>
+                            <option value="A2">A2</option>
+                            <option value="B1">B1</option>
+                            <option value="B2">B2</option>
+                            <option value="C1">C1</option>
+                            <option value="C2">C2</option>
+                            <option value="D1">D1</option>
+                            <option value="D2">D2</option>
+                            <option value="E">E</option>
+                        </select>
                     </div>
                 `;
             }
@@ -124,41 +150,45 @@
         function processData() {
             const subject = document.getElementById('subject').value.trim();
             const numStudents = document.getElementById('numStudents').value;
-            const passingMarks = parseInt(document.getElementById('passingMarks').value, 10);
+            const totalMarks = parseInt(document.getElementById('totalMarks').value, 10);
             const students = [];
 
-            if (!subject || !passingMarks || numStudents <= 0) {
-                alert("Please enter valid details for subject, passing marks, and number of students.");
+            if (!subject || !totalMarks || numStudents <= 0) {
+                alert("Please enter valid details for subject, total marks, and number of students.");
                 return;
             }
 
-            for (let i = 1; i <= numStudents; i++) {
-                const roll = document.getElementById(`roll${i}`).value.trim();
-                const marks = parseInt(document.getElementById(`marks${i}`).value, 10);
+            const passingMarks = Math.ceil(totalMarks * 0.33); // Calculate passing marks as 33% of total marks
 
-                if (roll && !isNaN(marks)) {
-                    students.push({ roll, marks });
+            for (let i = 1; i <= numStudents; i++) {
+                const roll = i; // Roll numbers automatically generated
+                const marks = parseInt(document.getElementById(`marks${i}`).value, 10);
+                const grade = document.getElementById(`grade${i}`).value;
+
+                if (!isNaN(marks) && grade) {
+                    students.push({ roll, marks, grade });
                 }
             }
 
             if (students.length === 0) {
-                alert("Please enter valid roll numbers and marks for all students.");
+                alert("Please enter valid marks and grades for all students.");
                 return;
             }
 
             // Calculate total marks, average, highest marks and QPI
-            const totalMarks = students.reduce((sum, student) => sum + student.marks, 0);
-            const averageMarks = totalMarks / students.length;
+            const totalObtainedMarks = students.reduce((sum, student) => sum + student.marks, 0);
+            const averageMarks = totalObtainedMarks / students.length;
             const highestMarks = Math.max(...students.map(student => student.marks));
-            const qpi = (totalMarks / students.length).toFixed(2);
+            const qpi = (totalObtainedMarks / students.length).toFixed(2);
 
             // Calculate percentages and percentiles
             students.forEach(student => {
-                student.percentage = (student.marks / 100) * 100; // Assuming full marks are 100
+                student.percentage = (student.marks / totalMarks) * 100;
             });
             students.sort((a, b) => a.marks - b.marks);
             students.forEach((student, index) => {
                 student.percentile = ((index + 1) / students.length * 100).toFixed(2);
+                student.status = student.marks >= passingMarks ? "Pass" : "Compartment";
             });
 
             // Categorize students based on percentage
@@ -191,13 +221,13 @@
             const resultsTableBody = document.querySelector('#resultsTable tbody');
             resultsTableBody.innerHTML = '';
             students.forEach(student => {
-                const status = student.marks >= passingMarks ? "Pass" : "Compartment";
                 const row = `<tr>
                     <td>${student.roll}</td>
                     <td>${student.marks}</td>
+                    <td>${student.grade}</td>
                     <td>${student.percentage.toFixed(2)}%</td>
                     <td>${student.percentile}%</td>
-                    <td>${status}</td>
+                    <td>${student.status}</td>
                 </tr>`;
                 resultsTableBody.innerHTML += row;
             });
@@ -218,7 +248,30 @@
         }
 
         function downloadPDF() {
-            alert("PDF functionality can be added similarly to the earlier version.");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Add results table to PDF
+            doc.text("Student Results", 10, 10);
+            doc.autoTable({
+                html: '#resultsTable',
+                startY: 20,
+            });
+
+            // Add category analysis table to PDF
+            doc.addPage();
+            doc.text("Category Analysis", 10, 10);
+            doc.autoTable({
+                html: '#categoryTable',
+                startY: 20,
+            });
+
+            // Add QPI info
+            doc.addPage();
+            doc.text(`QPI: ${document.getElementById('qpi').textContent}`, 10, 10);
+
+            // Save PDF
+            doc.save('student_marks_analysis.pdf');
         }
     </script>
 </body>
